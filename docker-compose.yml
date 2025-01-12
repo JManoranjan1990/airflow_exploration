@@ -1,0 +1,84 @@
+version: '3'
+
+x-spark-common: &spark-common
+  image: bitnami/spark:latest
+  volumes:
+    - ./jobs:/opt/bitnami/spark/jobs
+    - ./data:/opt/bitnami/spark/data
+  networks:
+    - big-data
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  env_file:
+    - airflow.env
+  volumes:
+    - ./jobs:/opt/airflow/jobs
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./data:/opt/airflow/data
+    - ./data:/opt/bitnami/spark/data
+  depends_on:
+    - postgres
+  networks:
+    - big-data
+
+services:
+  spark-master:
+    <<: *spark-common
+    command: bin/spark-class org.apache.spark.deploy.master.Master
+    ports:
+      - "9090:8080"
+      - "7077:7077"
+    volumes:
+      - ./data:/opt/bitnami/spark/data
+    environment:
+      - SPARK_LOCAL_DIRS=/opt/bitnami/spark/data
+
+  spark-worker:
+    <<: *spark-common
+    command: bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    depends_on:
+      - spark-master
+    volumes:
+      - ./data:/opt/bitnami/spark/data
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_MEMORY=1g
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_LOCAL_DIRS=/opt/bitnami/spark/data
+
+  postgres:
+    image: postgres:14.0
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    networks:
+      - big-data
+
+  webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    depends_on:
+      - scheduler
+
+  scheduler:
+    <<: *airflow-common
+    command: bash -c "airflow db migrate && airflow users create --username admin --firstname Manoranjan --lastname Jayarama --role Admin --email manoranjan@gmail.com --password admin && airflow scheduler"
+
+  event-generator:
+    build:
+      context: ./events_api
+    container_name: event-generator1
+    ports:
+      - "5000:5000"
+    networks:
+      - big-data
+networks:
+  big-data:
