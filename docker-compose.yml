@@ -5,6 +5,7 @@ x-spark-common: &spark-common
   volumes:
     - ./jobs:/opt/bitnami/spark/jobs
     - ./data:/opt/bitnami/spark/data
+    # - ./jars:/opt/bitnami/spark/jars
   networks:
     - big-data
 
@@ -20,6 +21,7 @@ x-airflow-common: &airflow-common
     - ./logs:/opt/airflow/logs
     - ./data:/opt/airflow/data
     - ./data:/opt/bitnami/spark/data
+    # - ./jars:/opt/bitnami/spark/jars
   depends_on:
     - postgres
   networks:
@@ -34,6 +36,7 @@ services:
       - "7077:7077"
     volumes:
       - ./data:/opt/bitnami/spark/data
+      # - ./jars:/opt/bitnami/spark/jars
     environment:
       - SPARK_LOCAL_DIRS=/opt/bitnami/spark/data
 
@@ -44,6 +47,7 @@ services:
       - spark-master
     volumes:
       - ./data:/opt/bitnami/spark/data
+      # - ./jars:/opt/bitnami/spark/jars
     environment:
       - SPARK_MODE=worker
       - SPARK_WORKER_CORES=2
@@ -80,5 +84,32 @@ services:
       - "5000:5000"
     networks:
       - big-data
+
+  postgres_db:
+    build:
+      context: ./dbservice
+    container_name: postgres_db_service
+    volumes:
+      - postgres_data1:/var/lib/postgresql/data
+    networks:
+      - big-data
+    ports:
+      - "5432:5432"
+
+  pgadmin:
+    build:
+      context: ./pgadmin
+    container_name: pgadmin_service
+    volumes:
+    - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - big-data   
+    ports:
+      - "80:80"
+volumes:
+  pgadmin_data: {}
+  postgres_data1: {}
+
+
 networks:
   big-data:

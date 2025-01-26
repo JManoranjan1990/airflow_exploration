@@ -39,6 +39,7 @@ branch=BranchPythonOperator(
     python_callable=select_branch,
     op_kwargs={"input_path":"/opt/airflow/data/branching/airquality.csv"},
     provide_context=True,
+    trigger_rule='one_failed',
     dag=dag
     )
 
